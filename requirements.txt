@@ -9,3 +9,4 @@ flashtext
 zstandard
 nltk
 gunicorn
+flask
