@@ -1,13 +1,12 @@
 from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-import os
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Path to your cloned DialoGPT model directory (this will be set in Render.com)
-MODEL_DIR = './model'  # Update this path based on where the model is saved or cloned
+# Path to your cloned DialoGPT model directory
+MODEL_DIR = './'  # The model files should already be in the root directory, so './' is fine
 
 # Load the pre-trained DialoGPT model and tokenizer
 model = AutoModelForCausalLM.from_pretrained(MODEL_DIR)
