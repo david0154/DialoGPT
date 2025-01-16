@@ -1,39 +1,72 @@
 from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
-import os
-import firebase_admin
-from firebase_admin import credentials, firestore
+import torch
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Firebase setup (path to your Firebase key file)
-cred = credentials.Certificate('firebase-key.json')  # Path to your Firebase key file in the root directory
-firebase_admin.initialize_app(cred)
-db = firestore.client()  # Firestore database instance
+# Load pre-trained DialoGPT model and tokenizer
+model_name = "microsoft/DialoGPT-medium"  # You can change this to other models if needed
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
-# Load the pre-trained model and tokenizer (from the root directory)
-model = AutoModelForCausalLM.from_pretrained('./')  # Loads model from the current directory
-tokenizer = AutoTokenizer.from_pretrained('./')   # Loads tokenizer from the current directory
+# Initialize conversation history
+chat_history_ids = None
+
+# David AI Self Information (static)
+DAVID_AI_INFO = {
+    "name": "David AI",
+    "creator": "David",
+    "version": "1.0",
+    "company": "Nexuzy Tech Pvt Ltd",
+    "description": "David AI is a conversational AI powered by DialoGPT, designed to assist users with natural conversations.",
+    "language": "English",
+    "creator_info": {
+        "name": "David",
+        "role": "Creator & Developer",
+        "company": "Nexuzy Tech Pvt Ltd",
+        "location": "India",
+        "website": "https://imdavid.in",  # Creator's website
+        "email": "davidk76011@gmail.com"  # Creator's email
+    }
+}
+
+@app.route('/')
+def home():
+    return "Welcome to David AI! Send a POST request to /predict to start chatting."
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    global chat_history_ids
+
+    # Get user input from the request
     user_input = request.json['text']
 
-    # Tokenize and generate a response using the model
-    inputs = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors="pt")
-    response_ids = model.generate(inputs, max_length=100, pad_token_id=tokenizer.eos_token_id)
-    response_text = tokenizer.decode(response_ids[0], skip_special_tokens=True)
+    # Encode the new user input, add the EOS token, and return a tensor in PyTorch
+    new_user_input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors='pt')
 
-    # Store user input and response in Firebase Firestore
-    db.collection('chat_history').add({
-        'user_input': user_input,
-        'response': response_text
-    })
+    # Append the new user input tokens to the chat history
+    if chat_history_ids is None:
+        chat_history_ids = new_user_input_ids
+    else:
+        chat_history_ids = torch.cat([chat_history_ids, new_user_input_ids], dim=-1)
 
-    return jsonify({"response": response_text})
+    # Generate a response from the model
+    bot_output = model.generate(chat_history_ids, max_length=1000, pad_token_id=tokenizer.eos_token_id)
 
-# Run the Flask app
+    # Decode the model's response
+    bot_response = tokenizer.decode(bot_output[:, chat_history_ids.shape[-1]:][0], skip_special_tokens=True)
+
+    # Update the chat history and return the response
+    chat_history_ids = bot_output
+
+    return jsonify({"response": bot_response})
+
+@app.route('/info', methods=['GET'])
+def get_ai_info():
+    """Endpoint to return information about David AI."""
+    return jsonify(DAVID_AI_INFO)
+
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))  # Default to 5000 for local testing
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # Run the Flask app
+    app.run(debug=True, host='0.0.0.0', port=5000)
