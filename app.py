@@ -28,7 +28,7 @@ def predict():
     return jsonify({"response": response_text})
 
 # Set the port dynamically based on the environment (Render)
-port = int(os.environ.get("PORT", 5000))  # Use the Render-provided PORT or default to 5000
+port = int(os.environ.get("PORT", 10000))  # Use the Render-provided PORT or default to 5000
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=port)  # Bind to the dynamic port for Render
