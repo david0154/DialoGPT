@@ -1,9 +1,13 @@
 from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from flask_cors import CORS  # Import CORS for handling cross-origin requests
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app)
 
 # Load pre-trained DialoGPT model and tokenizer
 model_name = "microsoft/DialoGPT-medium"  # You can change this to other models if needed
@@ -13,7 +17,7 @@ model = AutoModelForCausalLM.from_pretrained(model_name)
 # Initialize conversation history
 chat_history_ids = None
 
-# David AI Self Information (static)
+# Static AI info (Self information for the AI)
 DAVID_AI_INFO = {
     "name": "David AI",
     "creator": "David",
@@ -26,8 +30,8 @@ DAVID_AI_INFO = {
         "role": "Creator & Developer",
         "company": "Nexuzy Tech Pvt Ltd",
         "location": "India",
-        "website": "https://imdavid.in",  # Creator's website
-        "email": "davidk76011@gmail.com"  # Creator's email
+        "website": "https://imdavid.in",
+        "email": "davidk76011@gmail.com"
     }
 }
 
@@ -68,5 +72,5 @@ def get_ai_info():
     return jsonify(DAVID_AI_INFO)
 
 if __name__ == '__main__':
-    # Run the Flask app
+    # Run the Flask app on port 5000, accessible from all IPs
     app.run(debug=True, host='0.0.0.0', port=5000)
