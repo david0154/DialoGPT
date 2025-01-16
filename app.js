@@ -20,7 +20,7 @@ sendButton.addEventListener("click", async () => {
   addMessage("Thinking...", "ai");
 
   try {
-    const response = await fetch("http://localhost:5000/predict", {  // Update this URL after deployment to Render
+    const response = await fetch("https://david-ai-5mxs.onrender.com/predict", {  // Update this URL after deployment to Render
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
