@@ -10,4 +10,4 @@ zstandard
 nltk
 gunicorn
 flask
-firebase-admin
+
