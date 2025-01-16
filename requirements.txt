@@ -8,3 +8,4 @@ pycryptodome
 flashtext
 zstandard
 nltk
+gunicorn
