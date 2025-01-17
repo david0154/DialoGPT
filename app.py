@@ -1,76 +1,36 @@
 from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-from flask_cors import CORS  # Import CORS for handling cross-origin requests
+from flask_cors import CORS
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-# Enable CORS for all routes
-CORS(app)
-
-# Load pre-trained DialoGPT model and tokenizer
-model_name = "microsoft/DialoGPT-medium"  # You can change this to other models if needed
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
-
-# Initialize conversation history
-chat_history_ids = None
-
-# Static AI info (Self information for the AI)
-DAVID_AI_INFO = {
-    "name": "David AI",
-    "creator": "David",
-    "version": "1.0",
-    "company": "Nexuzy Tech Pvt Ltd",
-    "description": "David AI is a conversational AI powered by DialoGPT, designed to assist users with natural conversations.",
-    "language": "English",
-    "creator_info": {
-        "name": "David",
-        "role": "Creator & Developer",
-        "company": "Nexuzy Tech Pvt Ltd",
-        "location": "India",
-        "website": "https://imdavid.in",
-        "email": "davidk76011@gmail.com"
-    }
-}
-
-@app.route('/')
-def home():
-    return "Welcome to David AI! Send a POST request to /predict to start chatting."
+# Load pre-trained model and tokenizer
+model = AutoModelForCausalLM.from_pretrained("DialoGPT-medium")
+tokenizer = AutoTokenizer.from_pretrained("DialoGPT-medium")
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    global chat_history_ids
+    user_input = request.json['text']  # Receive user input
+    inputs = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors="pt")
+    
+    # Create the attention mask
+    attention_mask = torch.ones(inputs.shape, dtype=torch.long)
 
-    # Get user input from the request
-    user_input = request.json['text']
+    # Handle padding if necessary
+    # Ensure pad_token_id is set and not equal to eos_token_id
+    if tokenizer.pad_token_id is not None and tokenizer.pad_token_id != tokenizer.eos_token_id:
+        attention_mask = (inputs != tokenizer.pad_token_id).long()
 
-    # Encode the new user input, add the EOS token, and return a tensor in PyTorch
-    new_user_input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors='pt')
+    # Generate a response
+    response_ids = model.generate(inputs, attention_mask=attention_mask, max_length=1000, pad_token_id=tokenizer.eos_token_id)
+    
+    # Decode the generated response
+    response_text = tokenizer.decode(response_ids[0], skip_special_tokens=True)
 
-    # Append the new user input tokens to the chat history
-    if chat_history_ids is None:
-        chat_history_ids = new_user_input_ids
-    else:
-        chat_history_ids = torch.cat([chat_history_ids, new_user_input_ids], dim=-1)
-
-    # Generate a response from the model
-    bot_output = model.generate(chat_history_ids, max_length=1000, pad_token_id=tokenizer.eos_token_id)
-
-    # Decode the model's response
-    bot_response = tokenizer.decode(bot_output[:, chat_history_ids.shape[-1]:][0], skip_special_tokens=True)
-
-    # Update the chat history and return the response
-    chat_history_ids = bot_output
-
-    return jsonify({"response": bot_response})
-
-@app.route('/info', methods=['GET'])
-def get_ai_info():
-    """Endpoint to return information about David AI."""
-    return jsonify(DAVID_AI_INFO)
+    return jsonify({"response": response_text})
 
 if __name__ == '__main__':
-    # Run the Flask app on port 5000, accessible from all IPs
     app.run(debug=True, host='0.0.0.0', port=5000)
